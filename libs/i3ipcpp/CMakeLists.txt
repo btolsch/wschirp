@@ -57,14 +57,14 @@ target_link_libraries(i3ipc++
 )
 
 target_compile_options(i3ipc++
-	PUBLIC -std=c++11 -Wall -Wextra -Wno-unused-parameter
+	PRIVATE -std=c++11 -Wall -Wextra -Wno-unused-parameter
 )
 
 target_compile_definitions(i3ipc++
 	PRIVATE I3IPC_BUILD_DATETIME="${I3IPCppBUILD_DATETIME}"
 )
 
-if (CMAKE_BUILD_TYPE EQUAL "DEBUG")
+if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
 	target_compile_options(i3ipc++
 		PUBLIC -g3
 	)

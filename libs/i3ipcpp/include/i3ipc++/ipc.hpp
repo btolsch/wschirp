@@ -28,10 +28,10 @@ std::string  get_socketpath();
  * Primitive of rectangle
  */
 struct rect_t {
-	int  x; ///< Position on X axis
-	int  y; ///< Position on Y axis
-	int  width; ///< Width of rectangle
-	int  height; ///< Height of rectangle
+	uint32_t  x; ///< Position on X axis
+	uint32_t  y; ///< Position on Y axis
+	uint32_t  width; ///< Width of rectangle
+	uint32_t  height; ///< Height of rectangle
 };
 
 /**
@@ -89,6 +89,9 @@ enum class WorkspaceEventType : char {
 	INIT = 'i', ///< Initialized
 	EMPTY = 'e', ///< Became empty
 	URGENT = 'u', ///< Became urgent
+	RENAME = 'r', ///< Renamed
+	RELOAD = 'l', ///< Reloaded
+	RESTORED = 's', ///< Restored
 };
 
 /**
@@ -219,6 +222,15 @@ struct binding_t {
 
 
 /**
+ * A mode
+ */
+struct mode_t {
+	std::string  change; ///< The current mode in use
+	bool pango_markup; ///< Should pango markup be used for displaying this mode
+};
+
+
+/**
  * A bar configuration
  */
 struct bar_config_t {
@@ -326,15 +338,25 @@ public:
 	 */
 	int32_t get_event_socket_fd();
 
+	/**
+	 * Connect the event socket to IPC
+	 * @param  reconnect if true the event socket will be disconnected and connected again
+	 * @note Automaticly called, when calling handle_event();
+	 */
+	void  connect_event_socket(const bool  reconnect = false);
+
+	/**
+	 * Disconnect the event socket
+	 */
+	void  disconnect_event_socket();
+
 	sigc::signal<void, const workspace_event_t&>  signal_workspace_event; ///< Workspace event signal
 	sigc::signal<void>  signal_output_event; ///< Output event signal
-	sigc::signal<void>  signal_mode_event; ///< Output mode event signal
+	sigc::signal<void, const mode_t&>  signal_mode_event; ///< Output mode event signal
 	sigc::signal<void, const window_event_t&>  signal_window_event; ///< Window event signal
 	sigc::signal<void, const bar_config_t&>  signal_barconfig_update_event; ///< Barconfig update event signal
 	sigc::signal<void, const binding_t&>  signal_binding_event; ///< Binding event signal
 	sigc::signal<void, EventType, const std::shared_ptr<const buf_t>&>  signal_event; ///< i3 event signal @note Default handler routes event to signal according to type
-protected:
-	void  prepare_to_event_handling();
 private:
 	const int32_t  m_main_socket;
 	int32_t  m_event_socket;

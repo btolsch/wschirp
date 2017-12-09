@@ -42,10 +42,10 @@ std::vector<std::ostream*>  g_logging_err_outs = {
 
 inline rect_t  parse_rect_from_json(const Json::Value&  value) {
 	return {
-		.x = value["x"].asInt(),
-		.y = value["y"].asInt(),
-		.width = value["width"].asInt(),
-		.height = value["height"].asInt(),
+		.x = value["x"].asUInt(),
+		.y = value["y"].asUInt(),
+		.width = value["width"].asUInt(),
+		.height = value["height"].asUInt(),
 	};
 }
 
@@ -188,6 +188,18 @@ static std::shared_ptr<binding_t>  parse_binding_from_json(const Json::Value&  v
 #undef i3IPC_TYPE_STR
 }
 
+static std::shared_ptr<mode_t>  parse_mode_from_json(const Json::Value&  value) {
+	if (value.isNull())
+		return std::shared_ptr<mode_t>();
+	Json::Value  change = value["change"];
+	Json::Value  pango_markup = value["pango_markup"];
+
+	std::shared_ptr<mode_t>  p (new mode_t());
+	p->change = change.asString();
+	p->pango_markup = pango_markup.asBool();
+	return p;
+}
+
 
 static std::shared_ptr<bar_config_t>  parse_bar_config_from_json(const Json::Value&  value) {
 #define i3IPC_TYPE_STR "PARSE BAR CONFIG FROM JSON"
@@ -275,6 +287,12 @@ connection::connection(const std::string&  socket_path) : m_main_socket(i3_conne
 				ev.type = WorkspaceEventType::EMPTY;
 			} else if (change == "urgent") {
 				ev.type = WorkspaceEventType::URGENT;
+			} else if (change == "rename") {
+				ev.type = WorkspaceEventType::RENAME;
+			} else if (change == "reload") {
+				ev.type = WorkspaceEventType::RELOAD;
+			} else if (change == "restored") {
+				ev.type = WorkspaceEventType::RESTORED;
 			} else {
 				I3IPC_WARN("Unknown workspace event type " << change)
 				break;
@@ -282,7 +300,7 @@ connection::connection(const std::string&  socket_path) : m_main_socket(i3_conne
 			I3IPC_DEBUG("WORKSPACE " << change)
 
 			Json::Value  current = root["current"];
-			Json::Value  old = root["current"];
+			Json::Value  old = root["old"];
 
 			if (!current.isNull()) {
 				ev.current = parse_workspace_from_json(current);
@@ -298,10 +316,14 @@ connection::connection(const std::string&  socket_path) : m_main_socket(i3_conne
 			I3IPC_DEBUG("OUTPUT")
 			signal_output_event.emit();
 			break;
-		case ET_MODE:
+		case ET_MODE: {
 			I3IPC_DEBUG("MODE")
-			signal_mode_event.emit();
+			Json::Value  root;
+			IPC_JSON_READ(root);
+			std::shared_ptr<mode_t>  mode_data = parse_mode_from_json(root);
+			signal_mode_event.emit(*mode_data);
 			break;
+		}
 		case ET_WINDOW: {
 			window_event_t  ev;
 			Json::Value  root;
@@ -371,18 +393,36 @@ connection::connection(const std::string&  socket_path) : m_main_socket(i3_conne
 connection::~connection() {
 	i3_disconnect(m_main_socket);
 	if (m_event_socket > 0)
-		i3_disconnect(m_event_socket);
+		this->disconnect_event_socket();
 }
 
 
-void  connection::prepare_to_event_handling() {
+void  connection::connect_event_socket(const bool  reconnect) {
+	if (m_event_socket > 0) {
+		if (reconnect) {
+			this->disconnect_event_socket();
+		} else {
+			I3IPC_ERR("Trying to initialize event socket secondary")
+			return;
+		}
+	}
 	m_event_socket = i3_connect(m_socket_path);
 	this->subscribe(m_subscriptions);
 }
 
+
+void  connection::disconnect_event_socket() {
+	if (m_event_socket <= 0) {
+		I3IPC_WARN("Trying to disconnect non-connected event socket")
+		return;
+	}
+	i3_disconnect(m_event_socket);
+}
+
+
 void  connection::handle_event() {
 	if (m_event_socket <= 0) {
-		this->prepare_to_event_handling();
+		this->connect_event_socket();
 	}
 	auto  buf = i3_recv(m_event_socket);
 
