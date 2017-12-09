@@ -9,25 +9,6 @@
 int main() {
   i3ipc::connection conn;
 
-  auto t1 = std::chrono::steady_clock::now();
-  auto workspaces = conn.get_workspaces();
-  for (const auto &ws : workspaces) {
-    std::cout << ws->name;
-    if (ws->focused) {
-      std::cout << " focused";
-    }
-    if (ws->visible) {
-      std::cout << " visible";
-    }
-    std::cout << std::endl;
-  }
-  auto t2 = std::chrono::steady_clock::now();
-
-  std::cout
-      << "ms: "
-      << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count()
-      << std::endl;
-
   conn.signal_workspace_event.connect([](const i3ipc::workspace_event_t &ev) {
     std::cout << "workspace event" << std::endl;
     if (ev.current) {
@@ -44,9 +25,9 @@ int main() {
   fd_set readfds;
   FD_ZERO(&readfds);
   FD_SET(event_fd, &readfds);
-  t1 = std::chrono::steady_clock::now();
+  auto t1 = std::chrono::steady_clock::now();
   while (select(event_fd + 1, &readfds, nullptr, nullptr, &timeout) != -1) {
-    t2 = std::chrono::steady_clock::now();
+    auto t2 = std::chrono::steady_clock::now();
     std::cout << "elapsed: "
               << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1)
                      .count()
