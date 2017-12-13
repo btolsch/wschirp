@@ -9,8 +9,8 @@
 
 namespace {
 
-void printWorkspaceInfo(i3ipc::connection& conn) {
-  auto workspaces = conn.get_workspaces();
+void printWorkspaceInfo(
+    const std::vector<std::shared_ptr<i3ipc::workspace_t>>& workspaces) {
   std::cout << "%{A5:i3-msg workspace next:}";
   std::cout << "%{A4:i3-msg workspace prev:}";
   for (const auto& ws : workspaces) {
@@ -29,7 +29,12 @@ void printWorkspaceInfo(i3ipc::connection& conn) {
 
 int main_() {
   i3ipc::connection conn;
+  auto workspaces = conn.get_workspaces();
 
+  conn.signal_workspace_event.connect(
+      [&workspaces, &conn](const i3ipc::workspace_event_t&) {
+        workspaces = conn.get_workspaces();
+      });
   conn.subscribe(i3ipc::ET_WORKSPACE);
   conn.connect_event_socket();
 
@@ -53,7 +58,7 @@ int main_() {
     if (event_set) {
       conn.handle_event();
     }
-    printWorkspaceInfo(conn);
+    printWorkspaceInfo(workspaces);
     std::cout << stdin_line << std::endl;
   }
 
