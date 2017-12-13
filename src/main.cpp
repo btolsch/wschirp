@@ -10,7 +10,8 @@
 namespace {
 
 void printWorkspaceInfo(
-    const std::vector<std::shared_ptr<i3ipc::workspace_t>>& workspaces) {
+    const std::vector<std::shared_ptr<i3ipc::workspace_t>>& workspaces,
+    const std::string& current_mode) {
   std::cout << "%{A5:i3-msg workspace next:}";
   std::cout << "%{A4:i3-msg workspace prev:}";
   for (const auto& ws : workspaces) {
@@ -25,17 +26,26 @@ void printWorkspaceInfo(
     std::cout << " " << ws->name << " %{-u}%{A}";
   }
   std::cout << "%{U-}%{A}%{A}";
+  if (current_mode != "default") {
+    std::cout << " %{F#000000}%{B#AA0000}" << current_mode << "%{B-}%{F-}";
+  }
 }
 
 int main_() {
   i3ipc::connection conn;
   auto workspaces = conn.get_workspaces();
+  // We have to assume 'default' here because i3 has no way to poll the current
+  // mode; we just have to wait for the first event to get accurate info.
+  std::string current_mode{"default"};
 
   conn.signal_workspace_event.connect(
       [&workspaces, &conn](const i3ipc::workspace_event_t&) {
         workspaces = conn.get_workspaces();
       });
-  conn.subscribe(i3ipc::ET_WORKSPACE);
+  conn.signal_mode_event.connect([&current_mode](const i3ipc::mode_t& mode) {
+    current_mode = mode.change;
+  });
+  conn.subscribe(i3ipc::ET_WORKSPACE | i3ipc::ET_MODE);
   conn.connect_event_socket();
 
   int32_t event_fd = conn.get_event_socket_fd();
@@ -58,7 +68,7 @@ int main_() {
     if (event_set) {
       conn.handle_event();
     }
-    printWorkspaceInfo(workspaces);
+    printWorkspaceInfo(workspaces, current_mode);
     std::cout << stdin_line << std::endl;
   }
 
