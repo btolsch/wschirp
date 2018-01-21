@@ -18,4 +18,8 @@ target_compile_options(wsfilter
     PRIVATE -std=c++1z -Wall -Wextra -Werror -fcolor-diagnostics)
 target_link_libraries(wsfilter ${I3IPCpp_LIBRARIES})
 
-install(TARGETS wschirp wsfilter RUNTIME DESTINATION bin)
+add_executable(nbline src/nbline.cpp)
+target_compile_options(nbline
+    PRIVATE -std=c++1z -Wall -Wextra -Werror -fcolor-diagnostics)
+
+install(TARGETS wschirp wsfilter nbline RUNTIME DESTINATION bin)
