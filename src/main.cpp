@@ -1,6 +1,7 @@
 #include <sys/select.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <iostream>
 #include <string>
 
@@ -33,17 +34,24 @@ void printWorkspaceInfo(
   }
 }
 
+bool workspaceCompare(const std::shared_ptr<i3ipc::workspace_t>& a,
+                      const std::shared_ptr<i3ipc::workspace_t>& b) {
+  return a->rect.x < b->rect.x;
+}
+
 int main_() {
   i3ipc::connection conn;
   auto workspaces = conn.get_workspaces();
+  std::stable_sort(workspaces.begin(), workspaces.end(), workspaceCompare);
   // We have to assume 'default' here because i3 has no way to poll the current
   // mode; we just have to wait for the first event to get accurate info.
   std::string current_mode{"default"};
 
-  conn.signal_workspace_event.connect(
-      [&workspaces, &conn](const i3ipc::workspace_event_t&) {
-        workspaces = conn.get_workspaces();
-      });
+  conn.signal_workspace_event.connect([&workspaces,
+                                       &conn](const i3ipc::workspace_event_t&) {
+    workspaces = conn.get_workspaces();
+    std::stable_sort(workspaces.begin(), workspaces.end(), workspaceCompare);
+  });
   conn.signal_mode_event.connect([&current_mode](const i3ipc::mode_t& mode) {
     current_mode = mode.change;
   });
