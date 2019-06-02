@@ -20,7 +20,9 @@ void printWorkspaceInfo(
       std::cout << "%{U#bf700f}";
     } else if (ws->focused) {
       std::cout << "%{U#0f70bf}";
-    } else if (!ws->visible) {
+    } else if (ws->visible) {
+      std::cout << "%{U#CCCCCC}";
+    } else {
       std::cout << "%{U#888888}";
     }
     std::cout << " " << ws->name << " %{-u}%{A}";
